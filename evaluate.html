@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Impromptu Speech — Evaluation</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --paper:#f6efe2; --paper2:#efe6d4; --ink:#2c2a24; --muted:#7a7363;
+    --euca:#5b7a5e; --euca-d:#3f5a43; --gold:#b08d3e; --gold-l:#d8b766;
+    --line:#d8cdb6; --warn:#b4543a;
+  }
+  * { box-sizing:border-box; }
+  body {
+    margin:0; color:var(--ink); font-family:'Newsreader',Georgia,serif;
+    background-color:var(--paper);
+    background-image:
+      radial-gradient(circle at 50% 50%, rgba(176,141,62,.05) 0 2px, transparent 2px),
+      linear-gradient(135deg, rgba(176,141,62,.04) 25%, transparent 25%);
+    background-size:26px 26px, 26px 26px;
+    min-height:100vh; -webkit-font-smoothing:antialiased; padding-bottom: 96px;
+  }
+  .mono { font-family:'Space Mono',monospace; }
+  .wrap { max-width: 680px; margin:0 auto; padding: 26px 18px 20px; }
+
+  header.masthead { text-align:center; margin-bottom:18px; }
+  .eyebrow { font-family:'Space Mono',monospace; font-size:11px; letter-spacing:.42em; color:var(--gold); text-transform:uppercase; margin-bottom:8px; }
+  h1.title { font-family:'Fraunces',serif; font-weight:700; font-size:clamp(26px,6vw,38px); margin:0; line-height:1.04; }
+  .subtitle { color:var(--muted); font-size:14px; font-style:italic; margin-top:5px; }
+  .rule { height:1px; background:var(--line); margin:16px auto 0; max-width:220px; }
+
+  .speaker-pick {
+    background:var(--paper2); border:1px solid var(--line); border-radius:14px;
+    padding:16px 18px; margin: 18px 0 14px; text-align:center;
+  }
+  .speaker-pick label { display:block; font-family:'Space Mono',monospace; font-size:11px; letter-spacing:.18em; text-transform:uppercase; color:var(--muted); margin-bottom:8px; }
+  select#speakerNum {
+    width:100%; max-width:260px; padding:11px 12px; border:1px solid var(--line); border-radius:10px;
+    background:#fdfaf2; color:var(--ink); font-family:'Fraunces',serif; font-size:18px; text-align:center;
+  }
+  select#speakerNum:focus { outline:2px solid var(--gold-l); }
+
+  .progress-wrap { height:6px; background:var(--line); border-radius:999px; overflow:hidden; margin: 6px 0 18px; }
+  .progress-bar { height:100%; width:0; background:linear-gradient(90deg,var(--euca),var(--gold)); transition:width .3s; }
+
+  .card {
+    background:var(--paper2); border:1px solid var(--line); border-radius:14px;
+    padding:16px 16px 14px; margin-bottom:14px; transition:border-color .2s;
+  }
+  .card.missing { border-color:var(--warn); animation:shake .35s; }
+  @keyframes shake { 0%,100%{transform:translateX(0);} 25%{transform:translateX(-4px);} 75%{transform:translateX(4px);} }
+  .card h3 { font-family:'Fraunces',serif; font-size:17px; margin:0 0 2px; display:flex; align-items:center; gap:8px; }
+  .card .sub { color:var(--muted); font-size:13px; margin:0 0 12px; }
+
+  .scale { display:flex; gap:8px; }
+  .scale button {
+    flex:1; padding:12px 0; border:1px solid var(--line); border-radius:10px;
+    background:#fdfaf2; color:var(--ink); font-family:'Space Mono',monospace; font-size:17px; cursor:pointer;
+    transition:all .12s;
+  }
+  .scale button:hover { border-color:var(--gold-l); }
+  .scale button.on { background:var(--euca); color:#fbf7ec; border-color:var(--euca-d); transform:translateY(-2px); }
+  .scale-labels { display:flex; justify-content:space-between; font-size:11px; color:var(--muted); margin-top:6px; }
+
+  .footer-bar {
+    position:fixed; left:0; right:0; bottom:0; background:rgba(246,239,226,.96);
+    border-top:1px solid var(--line); backdrop-filter:blur(6px);
+    padding:12px 16px; display:flex; gap:12px; align-items:center; justify-content:center;
+  }
+  .total-pill { font-family:'Fraunces',serif; font-size:15px; color:var(--euca-d); }
+  .total-pill b { font-size:20px; }
+  .btn {
+    border:1px solid transparent; border-radius:11px; padding:12px 26px;
+    font-family:'Space Mono',monospace; font-size:13px; letter-spacing:.1em; text-transform:uppercase;
+    cursor:pointer; background:var(--gold); color:#fff; transition:filter .15s, transform .05s;
+  }
+  .btn:hover { filter:brightness(1.07); }
+  .btn:active { transform:translateY(1px); }
+  .btn.ghost { background:transparent; color:var(--ink); border-color:var(--line); }
+  .btn:disabled { opacity:.55; cursor:not-allowed; }
+
+  .toast {
+    position:fixed; left:50%; transform:translateX(-50%); bottom:84px;
+    background:var(--euca-d); color:#fbf7ec; padding:11px 20px; border-radius:999px;
+    font-family:'Space Mono',monospace; font-size:13px; opacity:0; transition:opacity .25s, bottom .25s;
+    pointer-events:none; z-index:60; text-align:center; max-width:90%;
+  }
+  .toast.show { opacity:1; bottom:94px; }
+  .toast.err { background:var(--warn); }
+
+  .thanks {
+    text-align:center; padding:40px 20px; display:none;
+  }
+  .thanks .big { font-family:'Fraunces',serif; font-size:30px; color:var(--euca-d); margin-bottom:8px; }
+  .thanks .sm { color:var(--muted); font-size:15px; }
+</style>
+</head>
+<body>
+<div class="wrap" id="formView">
+  <header class="masthead">
+    <div class="eyebrow">Satriwithaya · English Program</div>
+    <h1 class="title">Rate the Speaker</h1>
+    <div class="subtitle">Score each area from 1 to 5</div>
+    <div class="rule"></div>
+  </header>
+
+  <div class="speaker-pick">
+    <label for="speakerNum">Speaker number</label>
+    <select id="speakerNum">
+      <option value="" disabled selected>Select a speaker…</option>
+    </select>
+  </div>
+
+  <div class="progress-wrap"><div class="progress-bar" id="progressBar"></div></div>
+
+  <div id="criteria"></div>
+</div>
+
+<div class="thanks" id="thanksView">
+  <div class="big">Thank you! 🌿</div>
+  <div class="sm">Your evaluation has been recorded.</div>
+  <div style="margin-top:22px;">
+    <button class="btn" onclick="evaluateNext()">Rate another speaker</button>
+  </div>
+</div>
+
+<div class="footer-bar" id="footerBar">
+  <div class="total-pill">Total: <b id="totalNow">0</b> / 25</div>
+  <button class="btn ghost" onclick="resetForm()">Reset</button>
+  <button class="btn" id="submitBtn" onclick="submitEval()">Submit</button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ====== CONFIG ====== */
+const API_URL = "https://script.google.com/macros/s/AKfycbzUZ2tkNTF01e9F032vFNg0rVHYes1m1BxWKv5TXSep-Q4C6lNpVfan4YRf-34PyReb-w/exec";
+const MAX_SPEAKERS = 30;
+
+/* Five criteria, scored 1–5. Mirrors the SWEP impromptu rubric. */
+const CRITERIA = [
+  { key:'A', icon:'🎭', title:'Body Language & Tone', sub:'Eye contact, gesture, vocal variety, presence.' },
+  { key:'B', icon:'🎯', title:'Topic Adherence', sub:'Stayed on the prompt and addressed it fully.' },
+  { key:'C', icon:'🧭', title:'Flow & Structure', sub:'Clear opening, logical order, strong finish.' },
+  { key:'D', icon:'⏳', title:'Time Management', sub:'Used the time well — not rushed, not padded.' },
+  { key:'E', icon:'💬', title:'Response to Follow-Up', sub:'Handled the Q&A question with composure.' }
+];
+const SCALE_LABELS = { 1:'Needs work', 5:'Masterful' };
+
+const state = {};
+CRITERIA.forEach(c => state[c.key] = null);
+
+function buildSpeakerOptions(){
+  const sel = document.getElementById('speakerNum');
+  for (let i=1;i<=MAX_SPEAKERS;i++){
+    const o=document.createElement('option'); o.value=i; o.textContent='Speaker '+i; sel.appendChild(o);
+  }
+}
+
+function renderCriteria(){
+  const box = document.getElementById('criteria'); box.innerHTML='';
+  CRITERIA.forEach(c=>{
+    const card = document.createElement('div'); card.className='card'; card.id='card-'+c.key;
+    let scale = '';
+    for (let s=1;s<=5;s++) scale += `<button onclick="setScore('${c.key}',${s})" id="b-${c.key}-${s}">${s}</button>`;
+    card.innerHTML = `
+      <h3>${c.icon} ${c.title}</h3>
+      <p class="sub">${c.sub}</p>
+      <div class="scale">${scale}</div>
+      <div class="scale-labels"><span>1 · ${SCALE_LABELS[1]}</span><span>5 · ${SCALE_LABELS[5]}</span></div>`;
+    box.appendChild(card);
+  });
+}
+
+function setScore(key, s){
+  state[key] = s;
+  for (let i=1;i<=5;i++) document.getElementById('b-'+key+'-'+i).classList.toggle('on', i===s);
+  document.getElementById('card-'+key).classList.remove('missing');
+  updateTotal();
+}
+
+function updateTotal(){
+  let total=0, done=0;
+  CRITERIA.forEach(c=>{ if(state[c.key]!==null){ total+=state[c.key]; done++; } });
+  document.getElementById('totalNow').textContent = total;
+  document.getElementById('progressBar').style.width = (done/CRITERIA.length*100)+'%';
+}
+
+function resetForm(){
+  CRITERIA.forEach(c=>{
+    state[c.key]=null;
+    for (let i=1;i<=5;i++) document.getElementById('b-'+c.key+'-'+i).classList.remove('on');
+    document.getElementById('card-'+c.key).classList.remove('missing');
+  });
+  document.getElementById('speakerNum').selectedIndex = 0;
+  updateTotal();
+}
+
+function showToast(msg, isErr){
+  const t=document.getElementById('toast'); t.textContent=msg;
+  t.classList.toggle('err', !!isErr); t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 2600);
+}
+
+async function submitEval(){
+  const speaker = document.getElementById('speakerNum').value;
+  if (!speaker){ showToast('Please choose a speaker number.', true); return; }
+
+  const missing = CRITERIA.filter(c=>state[c.key]===null);
+  if (missing.length){
+    missing.forEach(c=>document.getElementById('card-'+c.key).classList.add('missing'));
+    showToast('Please rate all 5 areas ('+missing.length+' left).', true);
+    document.getElementById('card-'+missing[0].key).scrollIntoView({behavior:'smooth',block:'center'});
+    return;
+  }
+
+  const total = CRITERIA.reduce((sum,c)=>sum+state[c.key],0);
+  const btn = document.getElementById('submitBtn');
+  btn.disabled = true; btn.textContent = 'Submitting…';
+
+  if (!API_URL || API_URL.indexOf('PASTE_')===0){
+    btn.disabled=false; btn.textContent='Submit';
+    showToast('Backend URL not set yet.', true); return;
+  }
+
+  try {
+    // text/plain avoids a CORS preflight against Apps Script.
+    const res = await fetch(API_URL, {
+      method:'POST',
+      headers:{ 'Content-Type':'text/plain;charset=utf-8' },
+      body: JSON.stringify({
+        action:'submit',
+        speakerNumber: speaker,
+        score: total,
+        judgeId: getJudgeId()
+      })
+    });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error||'Submission failed');
+    showSuccess();
+  } catch(err){
+    btn.disabled=false; btn.textContent='Submit';
+    showToast('Could not submit. Check connection and try again.', true);
+  }
+}
+
+function showSuccess(){
+  document.getElementById('formView').style.display='none';
+  document.getElementById('footerBar').style.display='none';
+  document.getElementById('thanksView').style.display='block';
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+function evaluateNext(){
+  resetForm();
+  const btn=document.getElementById('submitBtn'); btn.disabled=false; btn.textContent='Submit';
+  document.getElementById('thanksView').style.display='none';
+  document.getElementById('formView').style.display='block';
+  document.getElementById('footerBar').style.display='flex';
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+/* A light per-device id so one phone's submissions are traceable in the sheet. */
+function getJudgeId(){
+  let id = 'j-' + Math.random().toString(36).slice(2,8);
+  return id;
+}
+
+/* ====== INIT ====== */
+buildSpeakerOptions();
+renderCriteria();
+updateTotal();
+</script>
+</body>
+</html>

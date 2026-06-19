@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Impromptu Speech — Master Display</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --paper: #f6efe2;
+    --paper2: #efe6d4;
+    --ink: #2c2a24;
+    --muted: #7a7363;
+    --euca: #5b7a5e;
+    --euca-d: #3f5a43;
+    --gold: #b08d3e;
+    --gold-l: #d8b766;
+    --line: #d8cdb6;
+    --warn: #b4543a;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    color: var(--ink);
+    font-family: 'Newsreader', Georgia, serif;
+    background-color: var(--paper);
+    background-image:
+      radial-gradient(circle at 50% 50%, rgba(176,141,62,.05) 0 2px, transparent 2px),
+      linear-gradient(135deg, rgba(176,141,62,.04) 25%, transparent 25%) ;
+    background-size: 26px 26px, 26px 26px;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+  }
+  .mono { font-family:'Space Mono', monospace; }
+  .display { font-family:'Fraunces', Georgia, serif; }
+
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 28px 20px 80px; }
+
+  header.masthead { text-align:center; margin-bottom: 26px; }
+  .eyebrow {
+    font-family:'Space Mono', monospace; font-size: 11px; letter-spacing: .42em;
+    color: var(--gold); text-transform: uppercase; margin-bottom: 8px;
+  }
+  h1.title {
+    font-family:'Fraunces', serif; font-weight:700; font-size: clamp(28px, 5vw, 46px);
+    margin: 0; letter-spacing: -.01em; line-height: 1.02;
+  }
+  .subtitle { color: var(--muted); font-size: 15px; font-style: italic; margin-top: 6px; }
+  .rule { height:1px; background:var(--line); margin: 18px auto 0; max-width: 260px; }
+
+  .grid { display:grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  @media (max-width: 820px){ .grid { grid-template-columns: 1fr; } }
+
+  .card {
+    background: var(--paper2);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 22px;
+    box-shadow: 0 1px 0 rgba(255,255,255,.5) inset, 0 8px 24px rgba(44,42,36,.05);
+  }
+  .card h2 {
+    font-family:'Fraunces', serif; font-size: 19px; margin: 0 0 4px;
+    display:flex; align-items:center; gap:9px;
+  }
+  .card .hint { color: var(--muted); font-size: 13px; margin: 0 0 16px; }
+  .badge {
+    font-family:'Space Mono', monospace; font-size:10px; letter-spacing:.18em;
+    color: var(--euca-d); background: rgba(91,122,94,.12);
+    border:1px solid rgba(91,122,94,.3); border-radius:999px;
+    padding: 3px 9px; text-transform: uppercase;
+  }
+
+  label.fld { display:block; font-size:13px; color:var(--muted); margin: 10px 0 5px; }
+  input[type=text], select {
+    width:100%; padding: 9px 11px; border:1px solid var(--line); border-radius:10px;
+    background:#fdfaf2; color:var(--ink); font-family:'Newsreader', serif; font-size:15px;
+  }
+  input[type=text]:focus, select:focus { outline:2px solid var(--gold-l); outline-offset:1px; }
+
+  .btn {
+    border:1px solid transparent; border-radius:11px; padding: 10px 16px;
+    font-family:'Space Mono', monospace; font-size:12px; letter-spacing:.1em; text-transform:uppercase;
+    cursor:pointer; background: var(--euca); color:#fbf7ec; transition: filter .15s, transform .05s;
+  }
+  .btn:hover { filter:brightness(1.08); }
+  .btn:active { transform: translateY(1px); }
+  .btn.gold { background: var(--gold); }
+  .btn.ghost { background: transparent; color: var(--ink); border-color: var(--line); }
+  .btn.sm { padding: 7px 11px; font-size:11px; }
+
+  .stepper { display:flex; align-items:center; gap:6px; }
+  .stepper .num {
+    width:38px; height:34px; border:1px solid var(--line); border-radius:9px;
+    background:#fdfaf2; cursor:pointer; font-size:18px; line-height:1; color:var(--ink);
+  }
+  .stepper .num:hover { background:#f1e9d6; }
+
+  /* Prompt output */
+  .prompt-out {
+    margin-top: 16px; border:1px dashed var(--gold-l); border-radius:14px;
+    background:#fffdf6; padding: 18px; min-height: 64px;
+    display:flex; flex-direction:column; gap:8px; justify-content:center;
+  }
+  .prompt-line { display:flex; gap:10px; align-items:baseline; }
+  .prompt-line .k { font-family:'Space Mono',monospace; font-size:10px; letter-spacing:.16em; color:var(--muted); text-transform:uppercase; min-width:78px; }
+  .prompt-line .v { font-family:'Fraunces', serif; font-size:22px; font-weight:600; color:var(--ink); }
+  .prompt-empty { color:var(--muted); font-style:italic; text-align:center; }
+
+  /* Timers */
+  .timer-row {
+    display:flex; align-items:center; justify-content:space-between; gap:14px;
+    padding: 14px 0; border-bottom:1px solid var(--line);
+  }
+  .timer-row:last-child { border-bottom:none; }
+  .timer-name { font-family:'Fraunces',serif; font-size:16px; }
+  .timer-controls { display:flex; align-items:center; gap:6px; }
+  .timer-clock {
+    font-family:'Space Mono', monospace; font-weight:700; font-size: 30px;
+    min-width: 108px; text-align:center; color: var(--euca-d);
+    background:#fffdf6; border:1px solid var(--line); border-radius:11px; padding:4px 6px;
+  }
+  .timer-clock.warn { color: var(--gold); }
+  .timer-clock.danger { color: var(--warn); animation: blink .9s infinite; }
+  @keyframes blink { 50% { opacity:.45; } }
+
+  /* Random number */
+  .rng-display {
+    font-family:'Fraunces', serif; font-weight:700; font-size: 76px; line-height:1;
+    text-align:center; color: var(--gold); margin: 6px 0 4px;
+    text-shadow: 0 2px 0 rgba(176,141,62,.15);
+  }
+  .rng-empty { color: var(--muted); font-size: 38px; }
+
+  /* Leaderboard */
+  .score-total {
+    display:flex; align-items:baseline; gap:10px; margin: 6px 0 14px;
+  }
+  .score-total .big { font-family:'Fraunces',serif; font-weight:700; font-size: 44px; color:var(--euca-d); }
+  .score-total .lbl { color:var(--muted); font-size:13px; }
+  table.board { width:100%; border-collapse:collapse; }
+  table.board th {
+    text-align:left; font-family:'Space Mono',monospace; font-size:10px; letter-spacing:.14em;
+    text-transform:uppercase; color:var(--muted); padding:6px 8px; border-bottom:1px solid var(--line);
+  }
+  table.board td { padding:8px; border-bottom:1px solid var(--line); font-size:15px; }
+  table.board tr.me td { background: rgba(176,141,62,.1); }
+  .rank { font-family:'Space Mono',monospace; color:var(--gold); font-weight:700; width:36px; }
+  .medal { font-size:16px; }
+  .full { grid-column: 1 / -1; }
+  .live-dot { display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--euca); margin-right:6px; }
+  .live-dot.off { background:#c0b79f; }
+  footer.foot { text-align:center; color:var(--muted); font-size:12px; margin-top:30px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="masthead">
+    <div class="eyebrow">Satriwithaya · English Program</div>
+    <h1 class="title display">Impromptu Speech</h1>
+    <div class="subtitle">Master Display</div>
+    <div class="rule"></div>
+  </header>
+
+  <div class="grid">
+
+    <!-- PROMPT GENERATOR -->
+    <section class="card full">
+      <h2>🎲 Prompt Generator</h2>
+      <p class="hint">Choose 1–5 dimensions, list the possible values for each (comma-separated), then draw a random prompt.</p>
+
+      <label class="fld">Number of dimensions</label>
+      <div class="stepper">
+        <button class="num" onclick="changeDims(-1)">−</button>
+        <div class="timer-clock" id="dimCount" style="min-width:54px;font-size:22px;">3</div>
+        <button class="num" onclick="changeDims(1)">+</button>
+        <span class="badge" style="margin-left:8px;">max 5</span>
+      </div>
+
+      <div id="dimFields"></div>
+
+      <div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap;">
+        <button class="btn gold" onclick="generatePrompt()">Random prompt generation</button>
+        <button class="btn ghost" onclick="clearPrompt()">Clear</button>
+      </div>
+
+      <div class="prompt-out" id="promptOut">
+        <div class="prompt-empty">Your random prompt will appear here.</div>
+      </div>
+    </section>
+
+    <!-- TIMERS -->
+    <section class="card">
+      <h2>⏱ Countdown Timers</h2>
+      <p class="hint">Each phase adjusts in 30-second steps. Start runs the clock in its display.</p>
+      <div id="timers"></div>
+    </section>
+
+    <!-- RANDOM NUMBER -->
+    <section class="card">
+      <h2>🔢 Random Number</h2>
+      <p class="hint">Pick the upper limit (1–99), then draw.</p>
+      <label class="fld">Maximum value</label>
+      <div class="stepper">
+        <button class="num" onclick="changeLimit(-1)">−</button>
+        <input type="text" id="rngLimit" value="30" style="max-width:80px;text-align:center;" oninput="clampLimit()" />
+        <button class="num" onclick="changeLimit(1)">+</button>
+      </div>
+      <div class="rng-display rng-empty" id="rngDisplay">—</div>
+      <div style="text-align:center;">
+        <button class="btn" onclick="drawNumber()">Draw number</button>
+      </div>
+    </section>
+
+    <!-- SPEAKER LOOKUP + LEADERBOARD -->
+    <section class="card full">
+      <h2>🏆 Audience Evaluation &amp; Leaderboard</h2>
+      <p class="hint">
+        <span class="live-dot" id="liveDot"></span>
+        <span id="liveLabel">Live — refreshing every 8s</span>
+      </p>
+
+      <div class="grid" style="gap:18px;">
+        <div>
+          <label class="fld">Speaker number</label>
+          <select id="speakerLookup" onchange="renderTotal()"></select>
+          <div class="score-total">
+            <div class="big" id="speakerTotal">0</div>
+            <div class="lbl">total points<br /><span id="speakerCount" style="font-size:12px;">from 0 evaluations</span></div>
+          </div>
+          <button class="btn ghost sm" onclick="refreshBoard()">Refresh now</button>
+        </div>
+        <div>
+          <table class="board">
+            <thead><tr><th>#</th><th>Speaker</th><th>Total</th><th>Votes</th></tr></thead>
+            <tbody id="boardBody">
+              <tr><td colspan="4" style="color:var(--muted);font-style:italic;">No evaluations yet.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <footer class="foot">Satriwithaya English Program · Impromptu Speech Master Display</footer>
+</div>
+
+<script>
+/* ====== CONFIG ====== */
+const API_URL = "https://script.google.com/macros/s/AKfycbzUZ2tkNTF01e9F032vFNg0rVHYes1m1BxWKv5TXSep-Q4C6lNpVfan4YRf-34PyReb-w/exec";
+const MAX_SPEAKERS = 30;
+
+/* ====== PROMPT GENERATOR ====== */
+let dimCount = 3;
+const dimDefaults = [
+  "a job interview, a wedding toast, a debate, a TED talk",
+  "confident, nervous, sarcastic, overly formal",
+  "the future, honesty, technology, friendship",
+  "60 seconds, in rhyme, without the letter E",
+  "to a child, to your boss, to an alien"
+];
+
+function renderDimFields(){
+  const box = document.getElementById('dimFields');
+  box.innerHTML = '';
+  for (let i = 0; i < dimCount; i++){
+    const prev = box.dataset['d'+i] || dimDefaults[i] || '';
+    const lab = document.createElement('label'); lab.className='fld';
+    lab.textContent = 'Dimension ' + (i+1) + ' — possible values';
+    const inp = document.createElement('input');
+    inp.type='text'; inp.id='dim'+i; inp.placeholder='value 1, value 2, value 3';
+    inp.value = window['_dim'+i] !== undefined ? window['_dim'+i] : (dimDefaults[i]||'');
+    inp.oninput = ()=>{ window['_dim'+i] = inp.value; };
+    box.appendChild(lab); box.appendChild(inp);
+  }
+}
+function changeDims(d){
+  dimCount = Math.max(1, Math.min(5, dimCount + d));
+  document.getElementById('dimCount').textContent = dimCount;
+  renderDimFields();
+}
+function generatePrompt(){
+  const out = document.getElementById('promptOut');
+  const lines = [];
+  for (let i=0;i<dimCount;i++){
+    const raw = (document.getElementById('dim'+i).value||'').split(',').map(s=>s.trim()).filter(Boolean);
+    if (!raw.length){ continue; }
+    const pick = raw[Math.floor(Math.random()*raw.length)];
+    lines.push({ k:'Dimension '+(i+1), v:pick });
+  }
+  if (!lines.length){ out.innerHTML='<div class="prompt-empty">Add at least one value to a dimension first.</div>'; return; }
+  out.innerHTML = lines.map(l=>`<div class="prompt-line"><span class="k">${l.k}</span><span class="v">${escapeHtml(l.v)}</span></div>`).join('');
+}
+function clearPrompt(){
+  document.getElementById('promptOut').innerHTML='<div class="prompt-empty">Your random prompt will appear here.</div>';
+}
+
+/* ====== TIMERS ====== */
+const PHASES = [
+  { id:'prep', name:'Speech Preparation time', secs: 120 },
+  { id:'speech', name:'Speech time', secs: 180 },
+  { id:'qa', name:'Q&A time', secs: 60 }
+];
+const timerState = {};
+function renderTimers(){
+  const box = document.getElementById('timers'); box.innerHTML='';
+  PHASES.forEach(p=>{
+    timerState[p.id] = { base: p.secs, remaining: p.secs, running:false, handle:null };
+    const row = document.createElement('div'); row.className='timer-row';
+    row.innerHTML = `
+      <div>
+        <div class="timer-name">${p.name}</div>
+        <div class="timer-controls" style="margin-top:6px;">
+          <button class="num" onclick="adjustTimer('${p.id}',-30)">−</button>
+          <button class="num" onclick="adjustTimer('${p.id}',30)">+</button>
+          <button class="btn sm" onclick="startTimer('${p.id}')" id="start-${p.id}">Start</button>
+          <button class="btn ghost sm" onclick="resetTimer('${p.id}')">Reset</button>
+        </div>
+      </div>
+      <div class="timer-clock" id="clock-${p.id}">${fmt(p.secs)}</div>`;
+    box.appendChild(row);
+  });
+}
+function fmt(s){ const m=Math.floor(s/60), x=s%60; return m+':'+String(x).padStart(2,'0'); }
+function adjustTimer(id, d){
+  const t = timerState[id]; if (t.running) return;
+  t.base = Math.max(0, t.base + d); t.remaining = t.base;
+  paint(id);
+}
+function startTimer(id){
+  const t = timerState[id];
+  if (t.running){ clearInterval(t.handle); t.running=false; document.getElementById('start-'+id).textContent='Start'; return; }
+  t.running = true; document.getElementById('start-'+id).textContent='Pause';
+  t.handle = setInterval(()=>{
+    if (t.remaining<=0){ clearInterval(t.handle); t.running=false; document.getElementById('start-'+id).textContent='Start'; return; }
+    t.remaining--; paint(id);
+  }, 1000);
+}
+function resetTimer(id){
+  const t = timerState[id]; clearInterval(t.handle); t.running=false;
+  t.remaining = t.base; document.getElementById('start-'+id).textContent='Start'; paint(id);
+}
+function paint(id){
+  const t = timerState[id]; const el = document.getElementById('clock-'+id);
+  el.textContent = fmt(t.remaining);
+  el.classList.remove('warn','danger');
+  if (t.remaining<=10 && t.remaining>0) el.classList.add('danger');
+  else if (t.remaining<=30 && t.remaining>0) el.classList.add('warn');
+}
+
+/* ====== RANDOM NUMBER ====== */
+function clampLimit(){
+  let v = parseInt(document.getElementById('rngLimit').value.replace(/\D/g,''))||1;
+  v = Math.max(1, Math.min(99, v));
+  document.getElementById('rngLimit').value = v;
+}
+function changeLimit(d){
+  let v = parseInt(document.getElementById('rngLimit').value)||1;
+  v = Math.max(1, Math.min(99, v+d));
+  document.getElementById('rngLimit').value = v;
+}
+function drawNumber(){
+  clampLimit();
+  const lim = parseInt(document.getElementById('rngLimit').value)||1;
+  const n = Math.floor(Math.random()*lim)+1;
+  const el = document.getElementById('rngDisplay');
+  el.classList.remove('rng-empty'); el.textContent = n;
+}
+
+/* ====== SPEAKER LOOKUP + LEADERBOARD ====== */
+let lastTotals = {};
+function buildSpeakerOptions(){
+  const sel = document.getElementById('speakerLookup');
+  for (let i=1;i<=MAX_SPEAKERS;i++){
+    const o=document.createElement('option'); o.value=i; o.textContent='Speaker '+i; sel.appendChild(o);
+  }
+}
+function renderTotal(){
+  const s = document.getElementById('speakerLookup').value;
+  const rec = lastTotals[s] || { total:0, count:0 };
+  document.getElementById('speakerTotal').textContent = rec.total;
+  document.getElementById('speakerCount').textContent = 'from ' + rec.count + ' evaluation' + (rec.count===1?'':'s');
+}
+async function refreshBoard(){
+  const dot = document.getElementById('liveDot');
+  if (!API_URL || API_URL.indexOf('PASTE_')===0){
+    document.getElementById('liveLabel').textContent = 'Backend URL not set — paste your Apps Script URL into API_URL.';
+    dot.classList.add('off'); return;
+  }
+  try {
+    const res = await fetch(API_URL, { method:'GET' });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error||'error');
+    lastTotals = data.totals || {};
+    renderBoard(data.leaderboard || []);
+    renderTotal();
+    dot.classList.remove('off');
+    document.getElementById('liveLabel').textContent = 'Live — refreshing every 8s';
+  } catch(err){
+    dot.classList.add('off');
+    document.getElementById('liveLabel').textContent = 'Could not reach backend. Will retry.';
+  }
+}
+function renderBoard(board){
+  const body = document.getElementById('boardBody');
+  const sel = document.getElementById('speakerLookup').value;
+  if (!board.length){ body.innerHTML='<tr><td colspan="4" style="color:var(--muted);font-style:italic;">No evaluations yet.</td></tr>'; return; }
+  const medals = {1:'🥇',2:'🥈',3:'🥉'};
+  body.innerHTML = board.map((r,i)=>{
+    const rank=i+1; const m=medals[rank]||'';
+    const me = String(r.speaker)===String(sel) ? ' class="me"' : '';
+    return `<tr${me}><td class="rank">${rank} <span class="medal">${m}</span></td><td>Speaker ${r.speaker}</td><td><b>${r.total}</b></td><td>${r.count}</td></tr>`;
+  }).join('');
+}
+
+/* ====== UTIL ====== */
+function escapeHtml(s){ return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+
+/* ====== INIT ====== */
+renderDimFields();
+renderTimers();
+buildSpeakerOptions();
+refreshBoard();
+setInterval(refreshBoard, 8000);
+</script>
+</body>
+</html>
