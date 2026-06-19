@@ -208,8 +208,10 @@
         <button class="num" onclick="changeLimit(1)">+</button>
       </div>
       <div class="rng-display rng-empty" id="rngDisplay">—</div>
-      <div style="text-align:center;">
+      <div id="rngDrawn" class="hint" style="text-align:center;min-height:18px;margin-bottom:8px;"></div>
+      <div style="text-align:center;display:flex;gap:10px;justify-content:center;">
         <button class="btn" onclick="drawNumber()">Draw number</button>
+        <button class="btn ghost" onclick="resetNumbers()">Reset</button>
       </div>
     </section>
 
@@ -361,12 +363,38 @@ function changeLimit(d){
   v = Math.max(1, Math.min(99, v+d));
   document.getElementById('rngLimit').value = v;
 }
+let drawnNumbers = [];
 function drawNumber(){
   clampLimit();
   const lim = parseInt(document.getElementById('rngLimit').value)||1;
-  const n = Math.floor(Math.random()*lim)+1;
   const el = document.getElementById('rngDisplay');
+
+  // Build the pool of numbers not yet drawn (within the current limit).
+  const pool = [];
+  for (let i=1;i<=lim;i++){ if (!drawnNumbers.includes(i)) pool.push(i); }
+
+  if (!pool.length){
+    el.classList.add('rng-empty'); el.textContent='—';
+    document.getElementById('rngDrawn').textContent = 'All numbers 1–'+lim+' have been drawn. Press Reset to start over.';
+    return;
+  }
+
+  const n = pool[Math.floor(Math.random()*pool.length)];
+  drawnNumbers.push(n);
   el.classList.remove('rng-empty'); el.textContent = n;
+  updateDrawnLabel();
+}
+function updateDrawnLabel(){
+  const d = drawnNumbers.slice().sort((a,b)=>a-b);
+  document.getElementById('rngDrawn').textContent = d.length
+    ? 'Drawn so far: ' + d.join(', ')
+    : '';
+}
+function resetNumbers(){
+  drawnNumbers = [];
+  const el = document.getElementById('rngDisplay');
+  el.classList.add('rng-empty'); el.textContent='—';
+  document.getElementById('rngDrawn').textContent='';
 }
 
 /* ====== SPEAKER LOOKUP + LEADERBOARD ====== */
