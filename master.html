@@ -181,7 +181,7 @@
       <label class="fld">Number of dimensions</label>
       <div class="stepper">
         <button class="num" onclick="changeDims(-1)">−</button>
-        <div class="timer-clock" id="dimCount" style="min-width:54px;font-size:22px;">3</div>
+        <div class="timer-clock" id="dimCount" style="min-width:54px;font-size:22px;">5</div>
         <button class="num" onclick="changeDims(1)">+</button>
         <span class="badge" style="margin-left:8px;">max 5</span>
       </div>
@@ -201,7 +201,7 @@
     <!-- TIMERS -->
     <section class="card">
       <h2>⏱ Countdown Timers</h2>
-      <p class="hint">Set each Target with −/+ (30s steps). Start copies Target into the Countdown and runs it. Reset zeroes the Target.</p>
+      <p class="hint">Set each Target with −/+ (30s steps). Start copies Target into the Countdown and runs it. Reset zeroes the Countdown.</p>
       <div id="timers"></div>
     </section>
 
@@ -266,13 +266,13 @@ const API_URL = "https://script.google.com/macros/s/AKfycbzUZ2tkNTF01e9F032vFNg0
 const MAX_SPEAKERS = 30;
 
 /* ====== PROMPT GENERATOR ====== */
-let dimCount = 3;
+let dimCount = 5;
 const dimDefaults = [
-  "a job interview, a wedding toast, a debate, a TED talk",
-  "confident, nervous, sarcastic, overly formal",
-  "the future, honesty, technology, friendship",
-  "60 seconds, in rhyme, without the letter E",
-  "to a child, to your boss, to an alien"
+  "Social Media, Modern Jobs, Global Warming, AI, School Bullying",
+  "Positive, Negative, Balanced, Best Case, Worst Case",
+  "Personal Experience, Teenagers, Teachers, Parents, Governments",
+  "School, Home, Online, The Past, The Future",
+  "Money/Funding, AI Systems, Rules & Laws, Technology, Co-operation"
 ];
 
 function renderDimFields(){
@@ -379,8 +379,7 @@ function startTimer(id){
 function resetTimer(id){
   const t = timerState[id];
   clearInterval(t.handle); t.running=false; t.rang=false;
-  t.target = 0; t.remaining = 0;
-  document.getElementById('target-'+id).textContent = fmt(0);
+  t.remaining = 0;               // zero the COUNTDOWN only; Target is preserved
   document.getElementById('start-'+id).textContent='Start';
   paint(id);
 }
