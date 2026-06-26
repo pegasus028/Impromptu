@@ -109,20 +109,28 @@
   .prompt-empty { color:var(--muted); font-style:italic; text-align:center; }
 
   /* Timers */
-  .timer-row {
-    display:flex; align-items:center; justify-content:space-between; gap:14px;
+  .timer-block {
     padding: 14px 0; border-bottom:1px solid var(--line);
   }
-  .timer-row:last-child { border-bottom:none; }
-  .timer-name { font-family:'Fraunces',serif; font-size:16px; }
-  .timer-controls { display:flex; align-items:center; gap:6px; }
+  .timer-block:last-child { border-bottom:none; }
+  .timer-name { font-family:'Fraunces',serif; font-size:16px; margin-bottom:10px; }
+  .timer-fields { display:flex; align-items:flex-end; gap:14px; flex-wrap:wrap; }
+  .timer-field { display:flex; flex-direction:column; gap:5px; }
+  .timer-field .flbl {
+    font-family:'Space Mono',monospace; font-size:10px; letter-spacing:.14em;
+    text-transform:uppercase; color:var(--muted);
+  }
+  .timer-target-row { display:flex; align-items:center; gap:6px; }
+  .timer-controls { display:flex; align-items:center; gap:6px; margin-top:4px; }
   .timer-clock {
     font-family:'Space Mono', monospace; font-weight:700; font-size: 30px;
     min-width: 108px; text-align:center; color: var(--euca-d);
     background:#fffdf6; border:1px solid var(--line); border-radius:11px; padding:4px 6px;
   }
+  .timer-clock.target { font-size:24px; color:var(--ink); min-width:92px; }
   .timer-clock.warn { color: var(--gold); }
   .timer-clock.danger { color: var(--warn); animation: blink .9s infinite; }
+  .timer-clock.done { color: var(--euca); }
   @keyframes blink { 50% { opacity:.45; } }
 
   /* Random number */
@@ -193,7 +201,7 @@
     <!-- TIMERS -->
     <section class="card">
       <h2>⏱ Countdown Timers</h2>
-      <p class="hint">Each phase adjusts in 30-second steps. Start runs the clock in its display.</p>
+      <p class="hint">Set each Target with −/+ (30s steps). Start copies Target into the Countdown and runs it. Reset zeroes the Target.</p>
       <div id="timers"></div>
     </section>
 
@@ -207,6 +215,8 @@
         <input type="text" id="rngLimit" value="30" style="max-width:80px;text-align:center;" oninput="clampLimit()" />
         <button class="num" onclick="changeLimit(1)">+</button>
       </div>
+      <label class="fld">Exclude numbers:</label>
+      <input type="text" id="rngExclude" placeholder="e.g. 4, 13, 17" oninput="updateDrawnLabel()" />
       <div class="rng-display rng-empty" id="rngDisplay">—</div>
       <div id="rngDrawn" class="hint" style="text-align:center;min-height:18px;margin-bottom:8px;"></div>
       <div style="text-align:center;display:flex;gap:10px;justify-content:center;">
@@ -232,6 +242,7 @@
             <div class="lbl">total points<br /><span id="speakerCount" style="font-size:12px;">from 0 evaluations</span></div>
           </div>
           <button class="btn ghost sm" onclick="refreshBoard()">Refresh now</button>
+          <button class="btn ghost sm" style="border-color:var(--warn);color:var(--warn);" onclick="resetEvaluations()">Reset evaluations</button>
         </div>
         <div>
           <table class="board">
@@ -301,55 +312,105 @@ function clearPrompt(){
 
 /* ====== TIMERS ====== */
 const PHASES = [
-  { id:'prep', name:'Speech Preparation time', secs: 120 },
-  { id:'speech', name:'Speech time', secs: 180 },
-  { id:'qa', name:'Q&A time', secs: 60 }
+  { id:'prep', name:'Speech Preparation time', secs: 120, bell:true },
+  { id:'speech', name:'Speech time', secs: 180, bell:false },
+  { id:'qa', name:'Q&A time', secs: 60, bell:false }
 ];
 const timerState = {};
 function renderTimers(){
   const box = document.getElementById('timers'); box.innerHTML='';
   PHASES.forEach(p=>{
-    timerState[p.id] = { base: p.secs, remaining: p.secs, running:false, handle:null };
-    const row = document.createElement('div'); row.className='timer-row';
-    row.innerHTML = `
-      <div>
-        <div class="timer-name">${p.name}</div>
-        <div class="timer-controls" style="margin-top:6px;">
-          <button class="num" onclick="adjustTimer('${p.id}',-30)">−</button>
-          <button class="num" onclick="adjustTimer('${p.id}',30)">+</button>
+    timerState[p.id] = { target: p.secs, remaining: 0, running:false, handle:null, rang:false, bell:p.bell };
+    const block = document.createElement('div'); block.className='timer-block';
+    block.innerHTML = `
+      <div class="timer-name">${p.name}</div>
+      <div class="timer-fields">
+        <div class="timer-field">
+          <span class="flbl">Target</span>
+          <div class="timer-target-row">
+            <button class="num" onclick="adjustTarget('${p.id}',-30)">−</button>
+            <div class="timer-clock target" id="target-${p.id}">${fmt(p.secs)}</div>
+            <button class="num" onclick="adjustTarget('${p.id}',30)">+</button>
+          </div>
+        </div>
+        <div class="timer-field">
+          <span class="flbl">Countdown</span>
+          <div class="timer-clock" id="clock-${p.id}">${fmt(0)}</div>
+        </div>
+        <div class="timer-controls">
           <button class="btn sm" onclick="startTimer('${p.id}')" id="start-${p.id}">Start</button>
           <button class="btn ghost sm" onclick="resetTimer('${p.id}')">Reset</button>
         </div>
-      </div>
-      <div class="timer-clock" id="clock-${p.id}">${fmt(p.secs)}</div>`;
-    box.appendChild(row);
+      </div>`;
+    box.appendChild(block);
   });
 }
 function fmt(s){ const m=Math.floor(s/60), x=s%60; return m+':'+String(x).padStart(2,'0'); }
-function adjustTimer(id, d){
+
+function adjustTarget(id, d){
   const t = timerState[id]; if (t.running) return;
-  t.base = Math.max(0, t.base + d); t.remaining = t.base;
-  paint(id);
+  t.target = Math.max(0, t.target + d);
+  document.getElementById('target-'+id).textContent = fmt(t.target);
 }
 function startTimer(id){
   const t = timerState[id];
-  if (t.running){ clearInterval(t.handle); t.running=false; document.getElementById('start-'+id).textContent='Start'; return; }
-  t.running = true; document.getElementById('start-'+id).textContent='Pause';
+  if (t.running){ // pause
+    clearInterval(t.handle); t.running=false;
+    document.getElementById('start-'+id).textContent='Resume';
+    return;
+  }
+  // If not mid-pause, copy Target into Countdown to begin.
+  if (document.getElementById('start-'+id).textContent !== 'Resume'){
+    t.remaining = t.target; t.rang = false;
+  }
+  if (t.remaining <= 0){ t.remaining = t.target; t.rang = false; }
+  t.running = true;
+  document.getElementById('start-'+id).textContent='Pause';
+  paint(id);
   t.handle = setInterval(()=>{
-    if (t.remaining<=0){ clearInterval(t.handle); t.running=false; document.getElementById('start-'+id).textContent='Start'; return; }
     t.remaining--; paint(id);
+    if (t.remaining <= 0){
+      clearInterval(t.handle); t.running=false;
+      document.getElementById('start-'+id).textContent='Start';
+      if (t.bell && !t.rang){ ringBell(); t.rang = true; }
+    }
   }, 1000);
 }
 function resetTimer(id){
-  const t = timerState[id]; clearInterval(t.handle); t.running=false;
-  t.remaining = t.base; document.getElementById('start-'+id).textContent='Start'; paint(id);
+  const t = timerState[id];
+  clearInterval(t.handle); t.running=false; t.rang=false;
+  t.target = 0; t.remaining = 0;
+  document.getElementById('target-'+id).textContent = fmt(0);
+  document.getElementById('start-'+id).textContent='Start';
+  paint(id);
 }
 function paint(id){
   const t = timerState[id]; const el = document.getElementById('clock-'+id);
   el.textContent = fmt(t.remaining);
-  el.classList.remove('warn','danger');
-  if (t.remaining<=10 && t.remaining>0) el.classList.add('danger');
+  el.classList.remove('warn','danger','done');
+  if (t.remaining<=0 && !t.running) el.classList.add('done');
+  else if (t.remaining<=10 && t.remaining>0) el.classList.add('danger');
   else if (t.remaining<=30 && t.remaining>0) el.classList.add('warn');
+}
+
+/* Single bell tone via Web Audio (no asset needed). */
+let audioCtx = null;
+function ringBell(){
+  try {
+    audioCtx = audioCtx || new (window.AudioContext||window.webkitAudioContext)();
+    const now = audioCtx.currentTime;
+    [880, 1320].forEach((freq, i)=>{
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'sine'; osc.frequency.value = freq;
+      osc.connect(gain); gain.connect(audioCtx.destination);
+      const start = now + i*0.02;
+      gain.gain.setValueAtTime(0.0001, start);
+      gain.gain.exponentialRampToValueAtTime(0.35, start+0.01);
+      gain.gain.exponentialRampToValueAtTime(0.0001, start+1.4);
+      osc.start(start); osc.stop(start+1.5);
+    });
+  } catch(e){ /* audio not available */ }
 }
 
 /* ====== RANDOM NUMBER ====== */
@@ -364,18 +425,27 @@ function changeLimit(d){
   document.getElementById('rngLimit').value = v;
 }
 let drawnNumbers = [];
+function getExcluded(){
+  const raw = (document.getElementById('rngExclude').value||'');
+  return raw.split(',').map(s=>parseInt(s.trim(),10)).filter(n=>!isNaN(n));
+}
 function drawNumber(){
   clampLimit();
   const lim = parseInt(document.getElementById('rngLimit').value)||1;
   const el = document.getElementById('rngDisplay');
+  const excluded = getExcluded();
 
-  // Build the pool of numbers not yet drawn (within the current limit).
+  // Pool = numbers within limit, not manually excluded, not already drawn.
   const pool = [];
-  for (let i=1;i<=lim;i++){ if (!drawnNumbers.includes(i)) pool.push(i); }
+  for (let i=1;i<=lim;i++){
+    if (excluded.includes(i)) continue;
+    if (drawnNumbers.includes(i)) continue;
+    pool.push(i);
+  }
 
   if (!pool.length){
     el.classList.add('rng-empty'); el.textContent='—';
-    document.getElementById('rngDrawn').textContent = 'All numbers 1–'+lim+' have been drawn. Press Reset to start over.';
+    document.getElementById('rngDrawn').textContent = 'No numbers left to draw. Adjust the range/exclusions or press Reset.';
     return;
   }
 
@@ -386,15 +456,17 @@ function drawNumber(){
 }
 function updateDrawnLabel(){
   const d = drawnNumbers.slice().sort((a,b)=>a-b);
-  document.getElementById('rngDrawn').textContent = d.length
-    ? 'Drawn so far: ' + d.join(', ')
-    : '';
+  const ex = getExcluded().sort((a,b)=>a-b);
+  let txt = '';
+  if (d.length) txt += 'Drawn so far: ' + d.join(', ');
+  if (ex.length) txt += (txt?' · ':'') + 'Excluded: ' + ex.join(', ');
+  document.getElementById('rngDrawn').textContent = txt;
 }
 function resetNumbers(){
   drawnNumbers = [];
   const el = document.getElementById('rngDisplay');
   el.classList.add('rng-empty'); el.textContent='—';
-  document.getElementById('rngDrawn').textContent='';
+  updateDrawnLabel();
 }
 
 /* ====== SPEAKER LOOKUP + LEADERBOARD ====== */
@@ -441,6 +513,28 @@ function renderBoard(board){
     const me = String(r.speaker)===String(sel) ? ' class="me"' : '';
     return `<tr${me}><td class="rank">${rank} <span class="medal">${m}</span></td><td>Speaker ${r.speaker}</td><td><b>${r.total}</b></td><td>${r.count}</td></tr>`;
   }).join('');
+}
+async function resetEvaluations(){
+  if (!API_URL || API_URL.indexOf('PASTE_')===0){ alert('Backend URL not set.'); return; }
+  const pass = prompt('This clears ALL evaluations and releases every student name selection. Enter the passcode to confirm:');
+  if (pass === null) return;
+  try {
+    // Apps Script cross-origin: try a readable POST, fall back to no-cors.
+    let ok = false;
+    const payload = JSON.stringify({ action:'reset', what:'all', passcode: pass });
+    try {
+      const res = await fetch(API_URL, { method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body: payload });
+      const data = await res.json();
+      if (data && data.ok) ok = true;
+      else if (data && data.error) { alert(data.error); return; }
+    } catch(inner){
+      await fetch(API_URL, { method:'POST', mode:'no-cors', headers:{'Content-Type':'text/plain;charset=utf-8'}, body: payload });
+      ok = true; // can't read response; assume applied
+    }
+    if (ok){ await refreshBoard(); alert('All evaluations cleared and name selections released.'); }
+  } catch(err){
+    alert('Could not reach the backend to reset. Try again.');
+  }
 }
 
 /* ====== UTIL ====== */

@@ -96,10 +96,62 @@
   }
   .thanks .big { font-family:'Fraunces',serif; font-size:30px; color:var(--euca-d); margin-bottom:8px; }
   .thanks .sm { color:var(--muted); font-size:15px; }
+
+  /* Identity gate */
+  .gate { max-width:460px; margin:6px auto 0; }
+  .gate .card-id {
+    background:var(--paper2); border:1px solid var(--line); border-radius:16px; padding:22px 20px;
+  }
+  .gate label.fld { display:block; font-family:'Space Mono',monospace; font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:var(--muted); margin:14px 0 6px; }
+  .gate label.fld:first-of-type { margin-top:0; }
+  .gate select {
+    width:100%; padding:12px; border:1px solid var(--line); border-radius:10px;
+    background:#fdfaf2; color:var(--ink); font-family:'Fraunces',serif; font-size:17px;
+  }
+  .gate select:disabled { opacity:.6; }
+  .gate select:focus { outline:2px solid var(--gold-l); }
+  .gate .go { margin-top:18px; width:100%; }
+  .gate .note { color:var(--muted); font-size:13px; margin-top:12px; text-align:center; min-height:18px; }
+  .gate .note.err { color:var(--warn); }
+
+  .ident-banner {
+    background:rgba(91,122,94,.1); border:1px solid rgba(91,122,94,.3); border-radius:12px;
+    padding:10px 14px; margin: 0 0 14px; display:flex; align-items:center; justify-content:space-between; gap:10px;
+    font-size:14px;
+  }
+  .ident-banner b { font-family:'Fraunces',serif; }
+  .ident-banner .switch { font-family:'Space Mono',monospace; font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--euca-d); background:none; border:none; cursor:pointer; text-decoration:underline; }
+  option.rated { color:#aa9; }
 </style>
 </head>
 <body>
-<div class="wrap" id="formView">
+
+<!-- STEP 1: IDENTITY GATE -->
+<div class="wrap gate" id="gateView">
+  <header class="masthead">
+    <div class="eyebrow">Satriwithaya · English Program</div>
+    <h1 class="title">Who are you?</h1>
+    <div class="subtitle">Choose your class and name to begin</div>
+    <div class="rule"></div>
+  </header>
+  <div class="card-id">
+    <label class="fld" for="classSel">Class</label>
+    <select id="classSel" onchange="onClassChange()">
+      <option value="" disabled selected>Select your class…</option>
+    </select>
+
+    <label class="fld" for="nickSel">Nickname</label>
+    <select id="nickSel" disabled>
+      <option value="" disabled selected>Select your class first…</option>
+    </select>
+
+    <button class="btn go" id="continueBtn" onclick="claimAndEnter()">Continue</button>
+    <div class="note" id="gateNote">Grayed-out names are already in use on another device.</div>
+  </div>
+</div>
+
+<!-- STEP 2: EVALUATION -->
+<div class="wrap" id="formView" style="display:none;">
   <header class="masthead">
     <div class="eyebrow">Satriwithaya · English Program</div>
     <h1 class="title">Rate the Speaker</h1>
@@ -107,9 +159,14 @@
     <div class="rule"></div>
   </header>
 
+  <div class="ident-banner">
+    <span>Evaluating as <b id="whoLabel">—</b></span>
+    <button class="switch" onclick="switchUser()">Not you?</button>
+  </div>
+
   <div class="speaker-pick">
     <label for="speakerNum">Speaker number</label>
-    <select id="speakerNum">
+    <select id="speakerNum" onchange="clearSpeakerWarning()">
       <option value="" disabled selected>Select a speaker…</option>
     </select>
   </div>
@@ -127,7 +184,7 @@
   </div>
 </div>
 
-<div class="footer-bar" id="footerBar">
+<div class="footer-bar" id="footerBar" style="display:none;">
   <div class="total-pill">Total: <b id="totalNow">0</b> / 25</div>
   <button class="btn ghost" onclick="resetForm()">Reset</button>
   <button class="btn" id="submitBtn" onclick="submitEval()">Submit</button>
@@ -139,6 +196,24 @@
 /* ====== CONFIG ====== */
 const API_URL = "https://script.google.com/macros/s/AKfycbzUZ2tkNTF01e9F032vFNg0rVHYes1m1BxWKv5TXSep-Q4C6lNpVfan4YRf-34PyReb-w/exec";
 const MAX_SPEAKERS = 30;
+
+/* Class → nicknames, from the Impromptu Evaluation Roster. */
+const ROSTER = {"2.2": ["JJ", "Ariel", "Sher", "Nita", "Proud", "Mikii", "Nada", "Bambam", "Tanya", "Namkhing", "Phing", "Pear", "Munich", "Melbourne", "Kaowpun", "Nana", "Gurney", "Peach", "Plume", "Cartoon", "Venice", "Khongkwan", "Taya", "Nirin", "Meiling", "Anchan", "Gut", "Azmy"], "2.1": ["Cheraim", "Proud", "Jean", "Jiya", "Janjao", "Raya", "Kaimook", "Rada", "Chyechye", "Grape", "Sol", "Anja", "Lookbua", "PunPun", "Meimei", "Prang", "Emmy", "Kao", "Jelly", "Pordee", "FinFin", "Kaohom", "Cerncern", "Yuri", "Shalis", "Hana", "Alice", "Yu", "Saiya", "Rica"], "MUN": ["Proud (2.1)", "Cheraim (2.1)", "Kaohom (3.1)", "Peem (3.1)", "Yaya (3.1)", "Tonkaow (3.1)", "Proud (4.4)", "Aeh (4.5)", "Nada (2.2)", "Nita (2.2)", "Plume (2.2)", "Kaowpun (2.2)"], "ALL": ["T. Chris", "T.Thomas"]};
+
+/* A stable per-device id so a refresh keeps the same identity/claim.
+   (Memory-only fallback if storage is unavailable in this context.) */
+let DEVICE_ID = 'dev-' + Math.random().toString(36).slice(2,10);
+try {
+  const k = 'swepImpromptuDeviceId';
+  let v = localStorage.getItem(k);
+  if (!v){ v = DEVICE_ID; localStorage.setItem(k, v); }
+  DEVICE_ID = v;
+} catch(e){ /* keep in-memory id */ }
+
+/* Current identity + shared state caches. */
+let identity = { className:null, nickname:null };
+let claimedNames = {};   // "class|nick" -> judgeId
+let mySpeakers = [];     // speaker numbers this student already rated
 
 /* Five criteria, scored 1–5. Mirrors the SWEP impromptu rubric. */
 const CRITERIA = [
@@ -155,10 +230,16 @@ CRITERIA.forEach(c => state[c.key] = null);
 
 function buildSpeakerOptions(){
   const sel = document.getElementById('speakerNum');
+  sel.innerHTML = '<option value="" disabled selected>Select a speaker…</option>';
   for (let i=1;i<=MAX_SPEAKERS;i++){
-    const o=document.createElement('option'); o.value=i; o.textContent='Speaker '+i; sel.appendChild(o);
+    const o=document.createElement('option'); o.value=i;
+    const rated = mySpeakers.includes(i);
+    o.textContent = 'Speaker '+i + (rated ? '  ✓ already rated' : '');
+    if (rated){ o.disabled = true; o.className='rated'; }
+    sel.appendChild(o);
   }
 }
+function clearSpeakerWarning(){ /* placeholder for future inline hints */ }
 
 function renderCriteria(){
   const box = document.getElementById('criteria'); box.innerHTML='';
@@ -208,6 +289,9 @@ function showToast(msg, isErr){
 async function submitEval(){
   const speaker = document.getElementById('speakerNum').value;
   if (!speaker){ showToast('Please choose a speaker number.', true); return; }
+  if (mySpeakers.includes(Number(speaker))){
+    showToast('You have already evaluated Speaker '+speaker+'.', true); return;
+  }
 
   const missing = CRITERIA.filter(c=>state[c.key]===null);
   if (missing.length){
@@ -231,11 +315,13 @@ async function submitEval(){
       action:'submit',
       speakerNumber: speaker,
       score: total,
-      judgeId: getJudgeId()
+      className: identity.className,
+      nickname: identity.nickname,
+      judgeId: DEVICE_ID
     });
 
-    // Primary attempt: normal fetch so we can read the JSON confirmation.
-    // text/plain avoids a CORS preflight against Apps Script.
+    // Primary attempt: normal fetch so we can read the JSON confirmation
+    // (and detect a duplicate-speaker rejection from the backend).
     let confirmed = false;
     try {
       const res = await fetch(API_URL, {
@@ -245,6 +331,13 @@ async function submitEval(){
       });
       const data = await res.json();
       if (data && data.ok) confirmed = true;
+      else if (data && data.duplicate){
+        btn.disabled=false; btn.textContent='Submit';
+        if (!mySpeakers.includes(Number(speaker))) mySpeakers.push(Number(speaker));
+        buildSpeakerOptions();
+        showToast(data.error || 'Already evaluated that speaker.', true);
+        return;
+      }
       else if (data && data.error) throw new Error(data.error);
     } catch (inner) {
       // Some browsers block reading Apps Script's cross-origin redirect.
@@ -259,6 +352,7 @@ async function submitEval(){
     }
 
     if (!confirmed) throw new Error('Submission not confirmed');
+    if (!mySpeakers.includes(Number(speaker))) mySpeakers.push(Number(speaker));
     showSuccess();
   } catch(err){
     btn.disabled=false; btn.textContent='Submit';
@@ -270,27 +364,166 @@ function showSuccess(){
   document.getElementById('formView').style.display='none';
   document.getElementById('footerBar').style.display='none';
   document.getElementById('thanksView').style.display='block';
+  buildSpeakerOptions();
   window.scrollTo({top:0,behavior:'smooth'});
 }
 function evaluateNext(){
   resetForm();
+  buildSpeakerOptions();
   const btn=document.getElementById('submitBtn'); btn.disabled=false; btn.textContent='Submit';
   document.getElementById('thanksView').style.display='none';
   document.getElementById('formView').style.display='block';
   document.getElementById('footerBar').style.display='flex';
+  if (allSpeakersRated()){
+    showToast('You have evaluated every available speaker. 🎉', false);
+  }
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+function allSpeakersRated(){
+  for (let i=1;i<=MAX_SPEAKERS;i++){ if (!mySpeakers.includes(i)) return false; }
+  return true;
+}
+
+/* ====== IDENTITY GATE ====== */
+function buildClassOptions(){
+  const sel = document.getElementById('classSel');
+  Object.keys(ROSTER).forEach(cls=>{
+    const o=document.createElement('option'); o.value=cls; o.textContent='Class '+cls; sel.appendChild(o);
+  });
+}
+function onClassChange(){
+  const cls = document.getElementById('classSel').value;
+  const nickSel = document.getElementById('nickSel');
+  nickSel.innerHTML='';
+  if (!cls){ nickSel.disabled=true; nickSel.innerHTML='<option value="" disabled selected>Select your class first…</option>'; return; }
+  nickSel.disabled=false;
+  const ph=document.createElement('option'); ph.value=''; ph.disabled=true; ph.selected=true; ph.textContent='Select your name…'; nickSel.appendChild(ph);
+  (ROSTER[cls]||[]).forEach(nick=>{
+    const o=document.createElement('option'); o.value=nick; o.textContent=nick;
+    const key = (cls+'|'+nick).toLowerCase();
+    // Disable names already claimed by a DIFFERENT device.
+    const holder = claimedNames[key];
+    if (holder && holder !== DEVICE_ID){ o.disabled=true; o.className='rated'; o.textContent=nick+'  (in use)'; }
+    nickSel.appendChild(o);
+  });
+}
+function setGateNote(msg, isErr){
+  const n=document.getElementById('gateNote'); n.textContent=msg||''; n.classList.toggle('err',!!isErr);
+}
+
+async function claimAndEnter(){
+  const cls = document.getElementById('classSel').value;
+  const nick = document.getElementById('nickSel').value;
+  if (!cls){ setGateNote('Please choose your class.', true); return; }
+  if (!nick){ setGateNote('Please choose your name.', true); return; }
+
+  const btn=document.getElementById('continueBtn'); btn.disabled=true; btn.textContent='Checking…';
+
+  if (!API_URL || API_URL.indexOf('PASTE_')===0){
+    // No backend: allow local use without locking.
+    identity={className:cls,nickname:nick}; enterEvaluation(); 
+    btn.disabled=false; btn.textContent='Continue'; return;
+  }
+
+  try {
+    // Refresh claims first so we don't race a stale list.
+    await refreshShared();
+    const key=(cls+'|'+nick).toLowerCase();
+    if (claimedNames[key] && claimedNames[key]!==DEVICE_ID){
+      setGateNote('That name was just taken on another device. Pick another.', true);
+      onClassChange();
+      btn.disabled=false; btn.textContent='Continue'; return;
+    }
+
+    const payload=JSON.stringify({action:'claim',className:cls,nickname:nick,judgeId:DEVICE_ID});
+    let claimed=false;
+    try {
+      const res=await fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:payload});
+      const data=await res.json();
+      if (data && data.ok) claimed=true;
+      else if (data && data.taken){ setGateNote(data.error||'That name is already in use.', true); onClassChange(); btn.disabled=false; btn.textContent='Continue'; return; }
+      else if (data && data.error) throw new Error(data.error);
+    } catch(inner){
+      // Cross-origin read blocked: fire-and-forget claim, then verify by re-reading.
+      await fetch(API_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},body:payload});
+      await new Promise(r=>setTimeout(r,400));
+      await refreshShared();
+      const holder=claimedNames[(cls+'|'+nick).toLowerCase()];
+      if (holder && holder!==DEVICE_ID){ setGateNote('That name is already in use on another device.', true); onClassChange(); btn.disabled=false; btn.textContent='Continue'; return; }
+      claimed=true;
+    }
+
+    if (claimed){ identity={className:cls,nickname:nick}; enterEvaluation(); }
+  } catch(err){
+    setGateNote('Could not reach the server. Try again.', true);
+  } finally {
+    btn.disabled=false; btn.textContent='Continue';
+  }
+}
+
+function enterEvaluation(){
+  document.getElementById('whoLabel').textContent = identity.nickname + ' · ' + identity.className;
+  buildSpeakerOptions();
+  document.getElementById('gateView').style.display='none';
+  document.getElementById('formView').style.display='block';
+  document.getElementById('footerBar').style.display='flex';
+  document.getElementById('thanksView').style.display='none';
   window.scrollTo({top:0,behavior:'smooth'});
 }
 
-/* A light per-device id so one phone's submissions are traceable in the sheet. */
-function getJudgeId(){
-  let id = 'j-' + Math.random().toString(36).slice(2,8);
-  return id;
+function switchUser(){
+  identity={className:null,nickname:null};
+  mySpeakers=[];
+  resetForm();
+  document.getElementById('formView').style.display='none';
+  document.getElementById('footerBar').style.display='none';
+  document.getElementById('thanksView').style.display='none';
+  document.getElementById('gateView').style.display='block';
+  document.getElementById('classSel').selectedIndex=0;
+  onClassChange();
+  refreshShared();
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+/* ====== SHARED STATE POLLING ====== */
+async function refreshShared(){
+  if (!API_URL || API_URL.indexOf('PASTE_')===0) return;
+  try {
+    let url = API_URL + '?judge=' + encodeURIComponent(DEVICE_ID);
+    if (identity.className && identity.nickname){
+      url += '&class=' + encodeURIComponent(identity.className) +
+             '&nickname=' + encodeURIComponent(identity.nickname);
+    }
+    const res = await fetch(url, { method:'GET' });
+    const data = await res.json();
+    if (!data || !data.ok) return;
+    claimedNames = data.claimed || {};
+    mySpeakers = (data.mySpeakers || []).map(Number);
+
+    // If we're identified but our claim vanished (master Reset), bounce to gate.
+    if (identity.className && identity.nickname){
+      const key=(identity.className+'|'+identity.nickname).toLowerCase();
+      const onGate = document.getElementById('gateView').style.display!=='none';
+      if (!onGate && (!claimedNames[key] || claimedNames[key]!==DEVICE_ID)){
+        showToast('Session was reset by the teacher.', true);
+        switchUser();
+        return;
+      }
+      buildSpeakerOptions();
+    } else {
+      // On the gate: refresh which names are selectable.
+      const curCls=document.getElementById('classSel').value;
+      if (curCls) onClassChange();
+    }
+  } catch(e){ /* keep last known state */ }
 }
 
 /* ====== INIT ====== */
-buildSpeakerOptions();
+buildClassOptions();
 renderCriteria();
 updateTotal();
+refreshShared();
+setInterval(refreshShared, 8000);
 </script>
 </body>
 </html>
